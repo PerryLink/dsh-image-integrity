@@ -25,6 +25,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   16×16 positive blocks; no shift/JPEG/scale robustness claims) and how to
   reproduce it.
 
+## [0.1.2] - 2026-11-08
+
+### Added
+
+- 100-pair synthetic image-reuse benchmark and `pnpm run bench:images`; README reports the measured precision/recall/FPR and the grid-aligned, uncompressed-fixture limits.
+
 ## [0.1.1] - 2026-11-08
 
 ### Changed

@@ -1,6 +1,6 @@
 {
   "name": "dsh-image-integrity",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Image integrity checks for DeepSeek Harness: zero-dependency 8-bit PNG decoding (grey/RGB/RGBA) with mean-threshold block fingerprints and NCC confirmation to find duplicated or mirrored regions inside one figure or shared between two figures, plus REP evidence and Markdown/SARIF reports. Finds reused pixels, not manipulation intent; JPEG is out of scope in v0.1.",
   "author": "PerryLink contributors",
   "repository": {
