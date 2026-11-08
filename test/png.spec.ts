@@ -42,4 +42,15 @@ describe('png', () => {
     const png = encodeGreyPng(pattern(8, 8), 8, 8)
     expect(() => decodePng(png.subarray(0, 10))).toThrow(PngError)
   })
+
+  it('rejects a header above the pixel cap before inflating', () => {
+    const png = encodeGreyPng(pattern(8, 8), 8, 8)
+    try {
+      decodePng(png, { maxPixels: 10 })
+      expect.unreachable('decodePng should reject 64 pixels with maxPixels 10')
+    } catch (error) {
+      expect(error).toBeInstanceOf(PngError)
+      expect((error as PngError).code).toBe('TOO_LARGE')
+    }
+  })
 })

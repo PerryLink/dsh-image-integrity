@@ -69,6 +69,15 @@ describe('single image', () => {
     const result = analyzeImage(imageOf(pixels, 64, 64))
     expect(result.duplicatePairs).toBe(0)
   })
+
+  it('reports the effective block size for an image smaller than the block size', () => {
+    const pixels = new Uint8Array(8 * 8)
+    for (let y = 0; y < 8; y += 1) for (let x = 0; x < 8; x += 1) pixels[y * 8 + x] = (x * 37 + y * 91 + x * y * 17) % 251
+    const result = analyzeImage(imageOf(pixels, 8, 8))
+    expect(result.blockSize).toBe(8)
+    expect(result.blocks).toBe(1)
+    expect(result.considered).toBe(1)
+  })
 })
 
 describe('pair', () => {

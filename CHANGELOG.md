@@ -6,6 +6,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Enforce `maxPixels` from the IHDR **before** inflating IDAT, and pass the
+  expected decompressed size as `inflateSync.maxOutputLength`; a small PNG with
+  huge dimensions can no longer allocate an arbitrarily large buffer.
+- Validate per-call thresholds (`blockSize` 2–256, `maxShiftBits`
+  0–blockSize², finite non-negative `minVariance`, NCC 0–1) so `blockSize: 0`
+  cannot loop forever and NaN/out-of-range options cannot silently disable
+  detection.
+- `image_report` validates the analysis/matches shapes and returns
+  `INVALID_INPUT` instead of dereferencing undefined fields.
+- Report the effective block size in `blocks` when the image is smaller than
+  the requested block, matching `blockSize` and `considered`.
+
+### Changed
+
+- Precompute mirrored bit patterns once per block and stop Hamming counting
+  once the tolerance is exceeded, removing per-pair mirror allocations from
+  the O(n²) comparison loop.
+- Test count is now 21; README/CHANGELOG list the new failure branches.
+
 ## [0.1.0] - 2026-11-08
 
 First release: block-level image reuse detection.

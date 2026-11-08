@@ -69,19 +69,23 @@ dsh --profile <name> --dump-config | grep dsh-image-integrity
 | `maxBytes` | `20971520` | file cap (fails, never truncates) |
 | `maxPixels` | `4000000` | decoded pixel cap |
 | `persist` | `true` | store images as REP evidence + record |
-| `blockSize` / `maxShiftBits` | `16` / `6` | block side; bit tolerance of 256 |
+| `blockSize` / `maxShiftBits` | `16` / `6` | block side (2–256); bit tolerance (0–blockSize²) |
 | `minVariance` / `nccThreshold` | `6` / `0.97` | texture floor; NCC confirmation |
 
 ## Security boundaries
 
 - Read-only on images; writes only under `root`.
 - `realpath` containment rejects symlink escapes.
-- Hard caps on bytes and pixels; failures are loud.
+- Hard caps on bytes and pixels; the pixel cap is checked from the IHDR
+  **before** inflation, and `inflateSync` is bounded by the expected output
+  size. Failures are loud.
+- Per-call thresholds are validated (`blockSize` 2–256, `maxShiftBits`
+  0–blockSize², NCC 0–1); an invalid threshold is `INVALID_INPUT`, not a crash.
 - PNG parser bounds-checks every chunk; unsupported formats are rejected, not guessed.
 
 ## Evaluation
 
-**18 tests**: PNG round-trip, non-PNG / 16-bit / truncated rejection, Hamming and NCC primitives, duplicate block detection, horizontal mirror detection, flat-image and gradient false-positive controls, pair matching, dimension-mismatch refusal, runtime (valid REP record, two snapshots per comparison, traversal/JPEG/oversize rejection), tools (schemas, check→report, compare, failure branch), package contract.
+**21 tests**: PNG round-trip, non-PNG / 16-bit / truncated rejection, pixel-cap rejection from the IHDR before inflation, Hamming and NCC primitives, duplicate block detection, horizontal mirror detection, flat-image and gradient false-positive controls, small-image effective block size, pair matching, dimension-mismatch refusal, runtime (valid REP record, two snapshots per comparison, traversal/JPEG/byte-and-pixel oversize rejection, invalid threshold rejection), tools (schemas, check→report, compare, malformed report, failure branch), package contract.
 
 **Benchmark status: not yet claimed.** The planned `dsh-research-bench` set is 100 synthetic PNG pairs (duplicate / mirrored / unrelated / hard negative). Until that set is frozen and scored, the unit fixtures above are the only evidence, and the README says so.
 

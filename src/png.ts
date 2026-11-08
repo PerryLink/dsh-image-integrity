@@ -19,7 +19,13 @@ export interface RgbaImage {
 }
 
 /** Decode failure codes. */
-export type PngErrorCode = 'NOT_PNG' | 'TRUNCATED' | 'BAD_CHUNK' | 'UNSUPPORTED'
+export type PngErrorCode = 'NOT_PNG' | 'TRUNCATED' | 'BAD_CHUNK' | 'UNSUPPORTED' | 'TOO_LARGE'
+
+/** Decoder bounds. */
+export interface DecodePngOptions {
+  /** Maximum decoded pixels; larger headers are rejected before inflating. */
+  readonly maxPixels?: number
+}
 
 /** A typed decode failure. */
 export class PngError extends Error {
@@ -125,15 +131,21 @@ function unfilter(line: Uint8Array, previous: Uint8Array, filter: number, bpp: n
 /**
  * Decode a PNG buffer.
  * @param data - the file bytes.
+ * @param options - pixel bound; enforced before any inflation/output allocation.
  * @returns the RGBA image.
  */
-export function decodePng(data: Uint8Array): RgbaImage {
+export function decodePng(data: Uint8Array, options: DecodePngOptions = {}): RgbaImage {
   if (!hasSignature(data)) throw new PngError('NOT_PNG', 'the file does not start with the PNG signature')
   const header = parseHeader(data)
   if (header.bitDepth !== 8) throw new PngError('UNSUPPORTED', `only 8-bit PNGs are supported, got ${header.bitDepth}-bit`)
   if (header.interlace !== 0) throw new PngError('UNSUPPORTED', 'interlaced PNGs are not supported')
   if (![0, 2, 6].includes(header.colorType)) throw new PngError('UNSUPPORTED', `colour type ${header.colorType} is not supported (0, 2, 6 only)`)
   if (header.width === 0 || header.height === 0) throw new PngError('BAD_CHUNK', 'zero-dimension image')
+  const maxPixels = options.maxPixels ?? Number.MAX_SAFE_INTEGER
+  if (!Number.isSafeInteger(maxPixels) || maxPixels <= 0) throw new PngError('BAD_CHUNK', 'maxPixels must be a positive safe integer')
+  if (header.width * header.height > maxPixels) {
+    throw new PngError('TOO_LARGE', `image is ${header.width}x${header.height}, above the ${maxPixels}-pixel cap`)
+  }
 
   const channels = header.colorType === 0 ? 1 : header.colorType === 2 ? 3 : 4
   const idat: Uint8Array[] = []
@@ -156,14 +168,16 @@ export function decodePng(data: Uint8Array): RgbaImage {
   if (!sawEnd) throw new PngError('TRUNCATED', 'no IEND chunk')
   if (idat.length === 0) throw new PngError('BAD_CHUNK', 'no IDAT chunk')
 
+  const stride = header.width * channels
+  const expected = (stride + 1) * header.height
   let raw: Uint8Array
   try {
-    raw = inflateSync(Buffer.concat(idat.map(part => Buffer.from(part))))
+    // maxOutputLength is the inflate-side half of the pixel cap: a small
+    // compressed IDAT must not be able to inflate into a huge buffer.
+    raw = inflateSync(Buffer.concat(idat.map(part => Buffer.from(part))), { maxOutputLength: expected })
   } catch (error) {
     throw new PngError('BAD_CHUNK', `IDAT does not inflate: ${(error as Error).message}`)
   }
-  const stride = header.width * channels
-  const expected = (stride + 1) * header.height
   if (raw.length < expected) throw new PngError('TRUNCATED', `expected ${expected} inflated bytes, got ${raw.length}`)
 
   const pixels = new Uint8Array(header.width * header.height * 4)

@@ -76,6 +76,9 @@ describe('runtime', () => {
     await expect(runtime().check({ path: 'x.jpg' })).rejects.toMatchObject({ code: 'UNSUPPORTED_IMAGE' })
     const tiny = new ImageRuntime({ config: resolveConfig({ workspaceRoot: workspace, root: store, maxBytes: 10 }), now: () => AT })
     await expect(tiny.check({ path: 'a.png' })).rejects.toMatchObject({ code: 'TOO_LARGE' })
+    const fewPixels = new ImageRuntime({ config: resolveConfig({ workspaceRoot: workspace, root: store, maxPixels: 10 }), now: () => AT })
+    await expect(fewPixels.check({ path: 'a.png' })).rejects.toMatchObject({ code: 'TOO_LARGE' })
+    await expect(runtime().check({ path: 'a.png', options: { blockSize: 0 } })).rejects.toMatchObject({ code: 'INVALID_INPUT' })
     await expect(runtime().check({})).rejects.toBeInstanceOf(ImageError)
   })
 })
@@ -112,6 +115,12 @@ describe('tools', () => {
     const failure = (await makeImageCheckTool(runtime()).execute({ path: '' }, EXEC)) as { ok: false; error: { code: string } }
     expect(failure.ok).toBe(false)
     expect(failure.error.code).toBe('INVALID_INPUT')
+  })
+
+  it('image_report rejects a malformed analysis instead of throwing', async () => {
+    const value = (await makeImageReportTool().execute({ analysis: {} }, EXEC)) as { ok: false; error: { code: string } }
+    expect(value.ok).toBe(false)
+    expect(value.error.code).toBe('INVALID_INPUT')
   })
 })
 

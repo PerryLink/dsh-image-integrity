@@ -68,6 +68,10 @@ interface Block {
   /** Variance left after removing the best-fit plane; a perfect ramp has ~0. */
   readonly residual: number
   readonly bits: Uint8Array
+  /** Bit pattern of the horizontally mirrored block. */
+  readonly horizontalBits: Uint8Array
+  /** Bit pattern of the vertically mirrored block. */
+  readonly verticalBits: Uint8Array
   readonly values: Float64Array
 }
 
@@ -81,8 +85,14 @@ export function toGray(image: RgbaImage): Float64Array {
   return gray
 }
 
-/** Hamming distance between two bit arrays. */
-export function hamming(left: Uint8Array, right: Uint8Array): number {
+/**
+ * Hamming distance between two bit arrays.
+ * @param left - first bits.
+ * @param right - second bits.
+ * @param limit - stop early once the distance exceeds this (default: exact).
+ * @returns the exact distance, or a value greater than `limit`.
+ */
+export function hamming(left: Uint8Array, right: Uint8Array, limit = Number.POSITIVE_INFINITY): number {
   let distance = 0
   for (let index = 0; index < left.length; index += 1) {
     let xor = left[index]! ^ right[index]!
@@ -90,6 +100,7 @@ export function hamming(left: Uint8Array, right: Uint8Array): number {
       distance += xor & 1
       xor >>>= 1
     }
+    if (distance > limit) return distance
   }
   return distance
 }
@@ -192,7 +203,18 @@ function blocksOf(image: RgbaImage, options: Required<ImageOptions>): Block[] {
         }
       }
       residual /= values.length
-      blocks.push({ x: column * size, y: row * size, index: blocks.length, variance, residual, bits: bitsOf(values), values })
+      const bits = bitsOf(values)
+      blocks.push({
+        x: column * size,
+        y: row * size,
+        index: blocks.length,
+        variance,
+        residual,
+        bits,
+        horizontalBits: bitsOf(mirror(values, size, 'horizontal')),
+        verticalBits: bitsOf(mirror(values, size, 'vertical')),
+        values,
+      })
     }
   }
   return blocks
@@ -206,32 +228,53 @@ function adjacent(left: Block, right: Block): boolean {
 
 /** Best match kind for a pair, if any. */
 function classify(left: Block, right: Block, size: number, options: Required<ImageOptions>): RegionMatch | undefined {
-  const direct = hamming(left.bits, right.bits) <= options.maxShiftBits && ncc(left.values, right.values) >= options.nccThreshold
-  if (direct) return { kind: 'duplicate', a: { x: left.x, y: left.y, block: size }, b: { x: right.x, y: right.y, block: size }, hamming: hamming(left.bits, right.bits), ncc: Number(ncc(left.values, right.values).toFixed(4)) }
+  const directDistance = hamming(left.bits, right.bits, options.maxShiftBits)
+  if (directDistance <= options.maxShiftBits && ncc(left.values, right.values) >= options.nccThreshold) {
+    return { kind: 'duplicate', a: { x: left.x, y: left.y, block: size }, b: { x: right.x, y: right.y, block: size }, hamming: directDistance, ncc: Number(ncc(left.values, right.values).toFixed(4)) }
+  }
   for (const axis of ['horizontal', 'vertical'] as const) {
-    const mirrored = mirror(right.values, size, axis)
-    const mirrorBits = bitsOf(mirrored)
-    if (hamming(left.bits, mirrorBits) <= options.maxShiftBits && ncc(left.values, mirrored) >= options.nccThreshold) {
-      return {
-        kind: axis === 'horizontal' ? 'horizontal-flip' : 'vertical-flip',
-        a: { x: left.x, y: left.y, block: size },
-        b: { x: right.x, y: right.y, block: size },
-        hamming: hamming(left.bits, mirrorBits),
-        ncc: Number(ncc(left.values, mirrored).toFixed(4)),
+    const mirrorBits = axis === 'horizontal' ? right.horizontalBits : right.verticalBits
+    const distance = hamming(left.bits, mirrorBits, options.maxShiftBits)
+    if (distance <= options.maxShiftBits) {
+      const mirrored = mirror(right.values, size, axis)
+      if (ncc(left.values, mirrored) >= options.nccThreshold) {
+        return {
+          kind: axis === 'horizontal' ? 'horizontal-flip' : 'vertical-flip',
+          a: { x: left.x, y: left.y, block: size },
+          b: { x: right.x, y: right.y, block: size },
+          hamming: distance,
+          ncc: Number(ncc(left.values, mirrored).toFixed(4)),
+        }
       }
     }
   }
   return undefined
 }
 
-/** Fill defaults. */
-function defaults(options: ImageOptions): Required<ImageOptions> {
-  return {
-    blockSize: options.blockSize ?? 16,
-    maxShiftBits: options.maxShiftBits ?? 6,
-    minVariance: options.minVariance ?? 6,
-    nccThreshold: options.nccThreshold ?? 0.97,
+/**
+ * Fill defaults and validate thresholds.
+ *
+ * Validation lives here (not only in the runtime) because `analyzeImage` and
+ * `compareImages` are exported: `blockSize: 0` would otherwise divide by zero
+ * and loop forever, and a negative/NaN variance or out-of-range NCC threshold
+ * would silently change every result.
+ * @param options - caller overrides.
+ * @returns fully resolved options.
+ */
+export function resolveImageOptions(options: ImageOptions = {}): Required<ImageOptions> {
+  const blockSize = options.blockSize ?? 16
+  if (!Number.isSafeInteger(blockSize) || blockSize < 2 || blockSize > 256) {
+    throw new RangeError('blockSize must be an integer between 2 and 256')
   }
+  const maxShiftBits = options.maxShiftBits ?? 6
+  if (!Number.isSafeInteger(maxShiftBits) || maxShiftBits < 0 || maxShiftBits > blockSize * blockSize) {
+    throw new RangeError(`maxShiftBits must be an integer between 0 and ${blockSize * blockSize}`)
+  }
+  const minVariance = options.minVariance ?? 6
+  if (!Number.isFinite(minVariance) || minVariance < 0) throw new RangeError('minVariance must be a finite non-negative number')
+  const nccThreshold = options.nccThreshold ?? 0.97
+  if (!Number.isFinite(nccThreshold) || nccThreshold < 0 || nccThreshold > 1) throw new RangeError('nccThreshold must be between 0 and 1')
+  return { blockSize, maxShiftBits, minVariance, nccThreshold }
 }
 
 /** Deduplicate A↔B matches. */
@@ -256,7 +299,8 @@ function dedupe(matches: RegionMatch[]): RegionMatch[] {
  * @returns matches and counts.
  */
 export function analyzeImage(image: RgbaImage, options: ImageOptions = {}): ImageAnalysis {
-  const resolved = defaults(options)
+  const resolved = resolveImageOptions(options)
+  const size = Math.min(resolved.blockSize, image.width, image.height)
   const blocks = blocksOf(image, resolved).filter(block => block.variance >= resolved.minVariance && block.residual >= resolved.minVariance)
   const matches: RegionMatch[] = []
   for (let left = 0; left < blocks.length; left += 1) {
@@ -264,7 +308,7 @@ export function analyzeImage(image: RgbaImage, options: ImageOptions = {}): Imag
       const first = blocks[left]!
       const second = blocks[right]!
       if (adjacent(first, second)) continue
-      const match = classify(first, second, Math.min(resolved.blockSize, image.width, image.height), resolved)
+      const match = classify(first, second, size, resolved)
       if (match !== undefined) matches.push(match)
     }
   }
@@ -272,8 +316,8 @@ export function analyzeImage(image: RgbaImage, options: ImageOptions = {}): Imag
   return {
     width: image.width,
     height: image.height,
-    blockSize: Math.min(resolved.blockSize, image.width, image.height),
-    blocks: Math.floor(image.width / resolved.blockSize) * Math.floor(image.height / resolved.blockSize),
+    blockSize: size,
+    blocks: Math.floor(image.width / size) * Math.floor(image.height / size),
     considered: blocks.length,
     matches: unique,
     duplicatePairs: unique.filter(match => match.kind === 'duplicate').length,
@@ -304,7 +348,7 @@ export function compareImages(left: RgbaImage, right: RgbaImage, options: ImageO
       warnings: ['images have different dimensions; no resize is attempted, so no comparison was made'],
     }
   }
-  const resolved = defaults(options)
+  const resolved = resolveImageOptions(options)
   const size = Math.min(resolved.blockSize, left.width, left.height)
   const leftBlocks = blocksOf(left, resolved).filter(block => block.variance >= resolved.minVariance && block.residual >= resolved.minVariance)
   const rightBlocks = blocksOf(right, resolved).filter(block => block.variance >= resolved.minVariance && block.residual >= resolved.minVariance)

@@ -19,7 +19,7 @@ import {
   type Snapshot,
 } from '@perrylink/dsh-research-core'
 import type { ResolvedConfig } from './config.ts'
-import { analyzeImage, compareImages, type ImageAnalysis, type ImageOptions, type PairAnalysis } from './analyze.ts'
+import { analyzeImage, compareImages, resolveImageOptions, type ImageAnalysis, type ImageOptions, type PairAnalysis } from './analyze.ts'
 import { decodePng, PngError, type RgbaImage } from './png.ts'
 import { VERSION } from './version.ts'
 
@@ -107,11 +107,15 @@ export class ImageRuntime {
 
   /** Thresholds from config, overridden per call. */
   options(overrides: ImageOptions = {}): ImageOptions {
-    return {
-      blockSize: overrides.blockSize ?? this.config.blockSize,
-      maxShiftBits: overrides.maxShiftBits ?? this.config.maxShiftBits,
-      minVariance: overrides.minVariance ?? this.config.minVariance,
-      nccThreshold: overrides.nccThreshold ?? this.config.nccThreshold,
+    try {
+      return resolveImageOptions({
+        blockSize: overrides.blockSize ?? this.config.blockSize,
+        maxShiftBits: overrides.maxShiftBits ?? this.config.maxShiftBits,
+        minVariance: overrides.minVariance ?? this.config.minVariance,
+        nccThreshold: overrides.nccThreshold ?? this.config.nccThreshold,
+      })
+    } catch (error) {
+      throw new ImageError('INVALID_INPUT', (error as Error).message)
     }
   }
 
@@ -139,13 +143,11 @@ export class ImageRuntime {
     const bytes = await readFile(real)
     let image: RgbaImage
     try {
-      image = decodePng(bytes)
+      image = decodePng(bytes, { maxPixels: this.config.maxPixels })
     } catch (error) {
-      if (error instanceof PngError) throw new ImageError(error.code === 'UNSUPPORTED' ? 'UNSUPPORTED_IMAGE' : 'UNSUPPORTED_IMAGE', error.message)
+      if (error instanceof PngError && error.code === 'TOO_LARGE') throw new ImageError('TOO_LARGE', error.message)
+      if (error instanceof PngError) throw new ImageError('UNSUPPORTED_IMAGE', error.message)
       throw new ImageError('UNSUPPORTED_IMAGE', `could not decode the image: ${(error as Error).message}`)
-    }
-    if (image.width * image.height > this.config.maxPixels) {
-      throw new ImageError('TOO_LARGE', `image is ${image.width}x${image.height}, above the ${this.config.maxPixels}-pixel cap`)
     }
     return { id: path.relative(realRoot, real).split(path.sep).join('/'), absolute: real, bytes, image }
   }
