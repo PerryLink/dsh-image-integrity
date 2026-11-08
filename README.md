@@ -85,7 +85,7 @@ dsh --profile <name> --dump-config | grep dsh-image-integrity
 
 ## Evaluation
 
-**21 tests**: PNG round-trip, non-PNG / 16-bit / truncated rejection, pixel-cap rejection from the IHDR before inflation, Hamming and NCC primitives, duplicate block detection, horizontal mirror detection, flat-image and gradient false-positive controls, small-image effective block size, pair matching, dimension-mismatch refusal, runtime (valid REP record, two snapshots per comparison, traversal/JPEG/byte-and-pixel oversize rejection, invalid threshold rejection), tools (schemas, check→report, compare, malformed report, failure branch), package contract.
+**22 tests**: PNG round-trip, non-PNG / 16-bit / truncated rejection, pixel-cap rejection from the IHDR before inflation (configured and default), Hamming and NCC primitives, duplicate block detection, horizontal mirror detection, flat-image and gradient false-positive controls, small-image effective block size, pair matching, dimension-mismatch refusal, runtime (valid REP record, two snapshots per comparison, traversal/JPEG/byte-and-pixel oversize rejection, invalid threshold rejection), tools (schemas, check→report, compare, malformed report, failure branch), package contract.
 
 **Benchmark status: not yet claimed.** The planned `dsh-research-bench` set is 100 synthetic PNG pairs (duplicate / mirrored / unrelated / hard negative). Until that set is frozen and scored, the unit fixtures above are the only evidence, and the README says so.
 

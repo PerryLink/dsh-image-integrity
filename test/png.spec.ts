@@ -53,4 +53,16 @@ describe('png', () => {
       expect((error as PngError).code).toBe('TOO_LARGE')
     }
   })
+
+  it('applies the default pixel cap when no option is supplied', () => {
+    const png = encodeGreyPng(pattern(8, 8), 8, 8)
+    png.writeUInt32BE(4_000_001, 16)
+    try {
+      decodePng(png)
+      expect.unreachable('decodePng should reject a 4,000,001-pixel header by default')
+    } catch (error) {
+      expect(error).toBeInstanceOf(PngError)
+      expect((error as PngError).code).toBe('TOO_LARGE')
+    }
+  })
 })

@@ -23,9 +23,12 @@ export type PngErrorCode = 'NOT_PNG' | 'TRUNCATED' | 'BAD_CHUNK' | 'UNSUPPORTED'
 
 /** Decoder bounds. */
 export interface DecodePngOptions {
-  /** Maximum decoded pixels; larger headers are rejected before inflating. */
+  /** Maximum decoded pixels (default 4,000,000); larger headers are rejected before inflating. */
   readonly maxPixels?: number
 }
+
+/** Default pixel bound; the runtime passes its configured value instead. */
+const DEFAULT_MAX_PIXELS = 4_000_000
 
 /** A typed decode failure. */
 export class PngError extends Error {
@@ -141,7 +144,7 @@ export function decodePng(data: Uint8Array, options: DecodePngOptions = {}): Rgb
   if (header.interlace !== 0) throw new PngError('UNSUPPORTED', 'interlaced PNGs are not supported')
   if (![0, 2, 6].includes(header.colorType)) throw new PngError('UNSUPPORTED', `colour type ${header.colorType} is not supported (0, 2, 6 only)`)
   if (header.width === 0 || header.height === 0) throw new PngError('BAD_CHUNK', 'zero-dimension image')
-  const maxPixels = options.maxPixels ?? Number.MAX_SAFE_INTEGER
+  const maxPixels = options.maxPixels ?? DEFAULT_MAX_PIXELS
   if (!Number.isSafeInteger(maxPixels) || maxPixels <= 0) throw new PngError('BAD_CHUNK', 'maxPixels must be a positive safe integer')
   if (header.width * header.height > maxPixels) {
     throw new PngError('TOO_LARGE', `image is ${header.width}x${header.height}, above the ${maxPixels}-pixel cap`)
