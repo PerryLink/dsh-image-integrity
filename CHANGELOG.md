@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `bench/run-images.mjs` and the `bench:images` script: score the plugin against
+  the frozen 100-pair synthetic image-reuse set in `dsh-research-bench`
+  (`data/images`) and write `bench/results-images.json`. The adapter predicts
+  `manipulated = matches.length > 0` and takes the first match's kind, using the
+  plugin defaults; the result has no timestamps and is byte-identical on rerun.
+- First reproducible benchmark numbers, replacing the "not yet claimed" status:
+  precision 1.0000, recall 1.0000, F1 1.0000 and false-positive rate 0.0000 on
+  50 manipulated + 50 clean pairs (25 duplicate, 25 flip, 25 unrelated, 25
+  hard-negative). Per-category accuracy and duplicate/flip subtype recall are
+  all 1.0000.
+
+### Changed
+
+- README evaluation sections now document the benchmark, its scope (grid-aligned
+  16×16 positive blocks; no shift/JPEG/scale robustness claims) and how to
+  reproduce it.
+
 ## [0.1.1] - 2026-11-08
 
 ### Changed

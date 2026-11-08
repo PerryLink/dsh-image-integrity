@@ -85,9 +85,20 @@ dsh --profile <name> --dump-config | grep dsh-image-integrity
 
 ## Evaluation
 
-**22 tests**: PNG round-trip, non-PNG / 16-bit / truncated rejection, pixel-cap rejection from the IHDR before inflation (configured and default), Hamming and NCC primitives, duplicate block detection, horizontal mirror detection, flat-image and gradient false-positive controls, small-image effective block size, pair matching, dimension-mismatch refusal, runtime (valid REP record, two snapshots per comparison, traversal/JPEG/byte-and-pixel oversize rejection, invalid threshold rejection), tools (schemas, check→report, compare, malformed report, failure branch), package contract.
+**23 tests**: PNG round-trip, non-PNG / 16-bit / truncated rejection, pixel-cap rejection from the IHDR before inflation (configured and default), Hamming and NCC primitives, duplicate block detection, horizontal mirror detection, flat-image and gradient false-positive controls, small-image effective block size, pair matching, dimension-mismatch refusal, runtime (valid REP record, two snapshots per comparison, traversal/JPEG/byte-and-pixel oversize rejection, invalid threshold rejection), tools (schemas, check→report, compare, malformed report, failure branch), mount contract (disabled mounts nothing, enabled registers three unique tools), package contract.
 
-**Benchmark status: not yet claimed.** The planned `dsh-research-bench` set is 100 synthetic PNG pairs (duplicate / mirrored / unrelated / hard negative). Until that set is frozen and scored, the unit fixtures above are the only evidence, and the README says so.
+**Benchmark — 100 synthetic pairs.** `pnpm run bench:images` scores the plugin against the frozen set (dataset version 0.1.0) in the companion [`dsh-research-bench`](https://github.com/PerryLink/dsh-research-bench) repository (`data/images`): 25 duplicate + 25 flip + 25 unrelated + 25 hard-negative pairs of 64×64 8-bit grey PNGs, fixed seed, with positives copying grid-aligned 16×16 blocks. The adapter runs against the built `lib/`, writes [`bench/results-images.json`](bench/results-images.json) with no timestamps (rerunning on the same data is byte-identical), and reads a sibling `../dsh-research-bench` checkout by default. Set `BENCH_DIR` or pass `node bench/run-images.mjs --data <dir>` for another location.
+
+| Metric (50 manipulated / 50 clean) | Value |
+|---|---|
+| Manipulated precision | 1.0000 |
+| Manipulated recall | 1.0000 |
+| Manipulated F1 | 1.0000 |
+| False-positive rate (unrelated + hard-negative) | 0.0000 |
+| Subtype recall — duplicate | 1.0000 |
+| Subtype recall — flip (horizontal 13 / vertical 12) | 1.0000 |
+
+Confusion: TP 50, FP 0, TN 50, FN 0; no pair was misclassified. Per-category accuracy is 1.0000 in all four categories (25/25 each). Scope: the positives copy **grid-aligned** 16×16 blocks, i.e. the detector's own unit; sub-grid shifts, JPEG recompression, scaling and rotation are outside this set and remain documented limitations. These are synthetic numbers on a frozen fixture, not a claim about how often real figures reuse panels. The dataset and generator live in the companion repository and are not published with this package.
 
 ## Known limitations (v0.1)
 

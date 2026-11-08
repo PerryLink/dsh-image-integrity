@@ -82,9 +82,20 @@ dsh --profile <name> --dump-config | grep dsh-image-integrity
 
 ## 评测
 
-**22 个测试**：PNG 往返、非 PNG / 16 位 / 截断文件拒绝、解压前依据 IHDR 拒绝超像素上限（配置值与默认值）、汉明距离与 NCC 基础函数、重复块检测、水平镜像检测、平坦图与渐变图的误报控制、小图的有效块大小、成对匹配、尺寸不一致时拒绝、runtime（合法 REP 记录、每次比较生成两份快照、路径遍历/JPEG/字节与像素超限拒绝、非法阈值拒绝）、tools（schema、check→report、compare、格式错误的报告、失败分支）、包契约。
+**23 个测试**：PNG 往返、非 PNG / 16 位 / 截断文件拒绝、解压前依据 IHDR 拒绝超像素上限（配置值与默认值）、汉明距离与 NCC 基础函数、重复块检测、水平镜像检测、平坦图与渐变图的误报控制、小图的有效块大小、成对匹配、尺寸不一致时拒绝、runtime（合法 REP 记录、每次比较生成两份快照、路径遍历/JPEG/字节与像素超限拒绝、非法阈值拒绝）、tools（schema、check→report、compare、格式错误的报告、失败分支）、挂载契约（disabled 不挂载任何工具，enabled 注册三个唯一工具）、包契约。
 
-**基准测试状态：尚未声称。** 计划中的 `dsh-research-bench` 数据集是 100 对合成 PNG（重复 / 镜像 / 无关 / 困难负样本）。在该数据集冻结并评分之前，上述单元 fixture 是唯一的证据，README 也如实说明这一点。
+**基准测试 —— 100 对合成图像。** `pnpm run bench:images` 会在配套的 [`dsh-research-bench`](https://github.com/PerryLink/dsh-research-bench) 仓库（`data/images`，数据集版本 0.1.0）上评分：25 对 duplicate + 25 对 flip + 25 对 unrelated + 25 对 hard-negative，均为 64×64 8 位灰度 PNG，固定种子，正样本复制的是与网格对齐的 16×16 块。适配器针对构建后的 `lib/` 运行，写入 [`bench/results-images.json`](bench/results-images.json)，不含时间戳（同一数据复跑字节一致）；默认读取同级 `../dsh-research-bench` 检出。其他位置可用 `BENCH_DIR`，或用 `node bench/run-images.mjs --data <dir>` 指定。
+
+| 指标（50 对 manipulated / 50 对 clean） | 值 |
+|---|---|
+| Manipulated precision | 1.0000 |
+| Manipulated recall | 1.0000 |
+| Manipulated F1 | 1.0000 |
+| 误报率（unrelated + hard-negative） | 0.0000 |
+| Subtype recall —— duplicate | 1.0000 |
+| Subtype recall —— flip（水平 13 / 垂直 12） | 1.0000 |
+
+混淆计数：TP 50、FP 0、TN 50、FN 0；没有误分类的图对。四类逐类准确率均为 1.0000（各 25/25）。范围：正样本复制的是**与网格对齐**的 16×16 块（即检测器自身的处理单元）；亚块偏移、JPEG 重压缩、缩放、旋转不在本集合内，仍是已记录的限制。这些是冻结合成 fixture 上的数字，不代表真实论文图中复用现象的比例。数据集与生成器维护在配套仓库中，不随本包发布。
 
 ## 已知限制（v0.1）
 
