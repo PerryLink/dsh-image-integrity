@@ -1,0 +1,20 @@
+# dsh-image-integrity bundle patch: mount the image integrity tools.
+#
+# Every key below is a Config field (Schemastery schema); invalid values fail the
+# profile load loudly. Analysis is local; nothing is uploaded.
+- insert:
+    - id: dsh-image-integrity
+      name: dsh-image-integrity
+      config:
+        enabled: true
+        root: .image-integrity
+        # 20 MiB file cap and 4 MP pixel cap; over-limit fails, never truncated.
+        maxBytes: 20971520
+        maxPixels: 4000000
+        persist: true
+        # Detection defaults (block side, bit tolerance of 256, flat-block floor,
+        # NCC confirmation threshold).
+        blockSize: 16
+        maxShiftBits: 6
+        minVariance: 6
+        nccThreshold: 0.97
