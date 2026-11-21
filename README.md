@@ -1,13 +1,22 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/dsh-image-integrity-hero-en-dark.webp">
+  <img src="docs/assets/dsh-image-integrity-hero-en-light.webp" width="100%" alt="dsh-image-integrity: the frozen 100-pair benchmark — manipulated precision, recall and F1 all 1.0000, false-positive rate 0.0000, with TP 50 / FP 0 / TN 50 / FN 0 on the right; below it the three match kinds, the Markdown + SARIF report surface and the boundary that this finds reused pixels, not manipulation intent">
+</picture>
+
 # dsh-image-integrity
 
 **Is that panel reused — duplicated in place, or pasted mirrored from another figure?**
 
 *Zero-dependency PNG decoding, mean-threshold block fingerprints with NCC confirmation, duplicate/mirror region reports, REP evidence and SARIF. It finds reused pixels, not manipulation intent.*
 
+[简体中文](README-zh.md) · [Español](README-es.md) · [Português](README-pt.md) · [हिन्दी](README-hi.md)
+
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%5E22.19%20%7C%7C%20%3E%3D24.9-brightgreen.svg)]()
 
-English · [简体中文](README-zh.md)
+</div>
 
 ---
 
@@ -18,6 +27,13 @@ English · [简体中文](README-zh.md)
 - **`image_report`** — Markdown + SARIF 2.1.0, one warning per matched region with coordinates, Hamming distance and NCC.
 
 How it works: decode PNG → luma → 16×16 blocks → mean-threshold bit pattern (robust to brightness offsets) + zero-mean NCC confirmation. Blocks that are flat **or close to a fitted plane** are skipped, so a smooth gradient is not reported as "duplicated".
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/dsh-image-integrity-flow-v5-dark.svg">
+  <img src="docs/assets/dsh-image-integrity-flow-v5-light.svg" width="100%" alt="dsh-image-integrity structure: a PNG is decoded to RGBA and luma with the pixel cap checked from the IHDR before inflation, 16×16 blocks are fingerprinted by a mean-threshold bit pattern after flat and near-plane blocks are skipped, candidate shifts are confirmed by Hamming distance and NCC against the defaults, and matches[] becomes REP evidence plus a Markdown and SARIF 2.1.0 report; the token labels inside the diagram are the real fields and defaults">
+</picture>
+
+*Structure: decode → fingerprint → match; `matches[]` and the derived `analysis` are the two outputs, and every match carries its coordinates, kind, Hamming distance and NCC. The token labels inside the diagram are the real field names and defaults, so the same picture serves all five languages.*
 
 ## What it does not do
 
@@ -84,6 +100,10 @@ dsh --profile <name> --dump-config | grep dsh-image-integrity
 - PNG parser bounds-checks every chunk; unsupported formats are rejected, not guessed.
 
 ## Evaluation
+
+![dsh-image-integrity test suite and benchmark: a real run of the 23 tests — PNG decoding, duplicate and mirrored block detection, the flat and gradient false-positive controls and the mount contract all pass — followed by the real bench stdout over 100 synthetic pairs: manipulated precision, recall and F1 1.0000, false-positive rate 0.0000, no misclassified pair](docs/assets/dsh-image-integrity-demo.gif)
+
+*Animated: the real `pnpm test` output and the real `pnpm run bench:images` stdout on 2026-11-21 (`BENCH_DIR` naming the `dsh-research-bench` checkout; frozen 100-pair synthetic dataset, no network). The pass markers are omitted because the terminal font has no check-mark glyph; the file names, counts and benchmark rows are verbatim.*
 
 **23 tests**: PNG round-trip, non-PNG / 16-bit / truncated rejection, pixel-cap rejection from the IHDR before inflation (configured and default), Hamming and NCC primitives, duplicate block detection, horizontal mirror detection, flat-image and gradient false-positive controls, small-image effective block size, pair matching, dimension-mismatch refusal, runtime (valid REP record, two snapshots per comparison, traversal/JPEG/byte-and-pixel oversize rejection, invalid threshold rejection), tools (schemas, check→report, compare, malformed report, failure branch), mount contract (disabled mounts nothing, enabled registers three unique tools), package contract.
 

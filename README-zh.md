@@ -1,13 +1,22 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/dsh-image-integrity-hero-zh-dark.webp">
+  <img src="docs/assets/dsh-image-integrity-hero-zh-light.webp" width="100%" alt="dsh-image-integrity 配图：冻结的 100 对基准——操纵图像 precision、recall、F1 均为 1.0000，误报率 0.0000，右侧是 TP 50 / FP 0 / TN 50 / FN 0；下方是三类匹配、Markdown + SARIF 报告面，以及「找的是被复用的像素，而不是操纵意图」的边界">
+</picture>
+
 # dsh-image-integrity
 
 **这张子图是不是被复用了 —— 原地重复，还是从另一张图镜像粘贴过来？**
 
 *零依赖 PNG 解码、带 NCC 确认的均值阈值块指纹、重复/镜像区域报告、REP 证据与 SARIF。它找的是被复用的像素，而不是操纵意图。*
 
+[English](README.md) · [Español](README-es.md) · [Português](README-pt.md) · [हिन्दी](README-hi.md)
+
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%5E22.19%20%7C%7C%20%3E%3D24.9-brightgreen.svg)]()
 
-[English](README.md) · 简体中文
+</div>
 
 ---
 
@@ -18,6 +27,13 @@
 - **`image_report`** —— Markdown + SARIF 2.1.0，每个匹配区域一条 warning，附坐标、汉明距离与 NCC。
 
 工作原理：解码 PNG → 亮度 → 16×16 块 → 均值阈值位模式（可抵抗亮度偏移）+ 零均值 NCC 确认。平坦**或接近拟合平面**的块会被跳过，因此平滑渐变不会被报成“重复”。
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/dsh-image-integrity-flow-v5-dark.svg">
+  <img src="docs/assets/dsh-image-integrity-flow-v5-light.svg" width="100%" alt="dsh-image-integrity 结构图：PNG 解码为 RGBA 与亮度，像素上限在解压前就按 IHDR 检查；平坦与接近拟合平面的块被跳过，其余 16×16 块取均值阈值位模式生成指纹；候选位移用汉明距离与 NCC 按默认阈值确认；matches[] 再落成 REP 证据与 Markdown、SARIF 2.1.0 报告。图内只有真实字段名与默认值">
+</picture>
+
+*结构：解码 → 指纹 → 匹配；`matches[]` 与由其推导的 `analysis` 是两条输出，每个匹配都带坐标、类型、汉明距离与 NCC。图内只有真实字段名与默认值，五语共用同一张结构图。*
 
 ## 它不做什么
 
@@ -81,6 +97,10 @@ dsh --profile <name> --dump-config | grep dsh-image-integrity
 - PNG 解析器对每个 chunk 做边界检查；不支持的格式直接拒绝，不做猜测。
 
 ## 评测
+
+![dsh-image-integrity 测试套件与基准：23 个测试的真实运行——PNG 解码、重复与镜像块检测、平坦与渐变图的误报控制、挂载契约全部通过——随后是 100 对合成图像的真实基准 stdout：操纵图像 precision、recall、F1 均 1.0000，误报率 0.0000，没有误分类的图对](docs/assets/dsh-image-integrity-demo.gif)
+
+*动图是 2026-11-21 真实运行的 `pnpm test` 输出与 `pnpm run bench:images` stdout（`BENCH_DIR` 指向 `dsh-research-bench` 检出；冻结的 100 对合成数据集，不联网）。勾选符号因终端字体没有该字形而省略；文件名、计数与基准行均逐字保留。*
 
 **23 个测试**：PNG 往返、非 PNG / 16 位 / 截断文件拒绝、解压前依据 IHDR 拒绝超像素上限（配置值与默认值）、汉明距离与 NCC 基础函数、重复块检测、水平镜像检测、平坦图与渐变图的误报控制、小图的有效块大小、成对匹配、尺寸不一致时拒绝、runtime（合法 REP 记录、每次比较生成两份快照、路径遍历/JPEG/字节与像素超限拒绝、非法阈值拒绝）、tools（schema、check→report、compare、格式错误的报告、失败分支）、挂载契约（disabled 不挂载任何工具，enabled 注册三个唯一工具）、包契约。
 
