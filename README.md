@@ -7,6 +7,8 @@
 
 # dsh-image-integrity
 
+当前版本 `0.1.5`。
+
 **Is that panel reused — duplicated in place, or pasted mirrored from another figure?**
 
 *Zero-dependency PNG decoding, mean-threshold block fingerprints with NCC confirmation, duplicate/mirror region reports, REP evidence and SARIF. It finds reused pixels, not manipulation intent.*
